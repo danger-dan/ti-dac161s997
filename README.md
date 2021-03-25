@@ -6,9 +6,9 @@ https://www.ti.com/lit/ds/symlink/dac161s997.pdf?ts=1616550300980&ref_url=https%
 Simply clone onto target machine run make and make install(su). This will install the module into the /lib/modules/kernel/extras folder. 
 Use modprobe to enable the module. The device tree will also need to be configured for the driver on an SPI bus.
   
-  *compatible = "ti,dac16s997";
+  compatible = "ti,dac16s997";
   
-  *spi-max-frequency = <10000000>;
+  spi-max-frequency = <10000000>;
   
 This driver uses the IIO device class and will be found in /sys/devices/iio:device[n] and /sys/bus/iio/devices/iio:device[n].
 
