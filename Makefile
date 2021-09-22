@@ -1,4 +1,4 @@
-obj-m += ti-dac16s997.o
+obj-m += ti-dac161s997.o
 KDIR = /lib/modules/$(shell uname -r)/build
 
 

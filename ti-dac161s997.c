@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * ti-dac16s997.c - Texas Instruments 16-bit 1-channel 4-20mA DAC driver
+ * ti-dac161s997.c - Texas Instruments 16-bit 1-channel 4-20mA DAC driver
  *
  * Datasheet:
  * https://www.ti.com/lit/ds/symlink/dac161s997.pdf?ts=1616550300980&ref_url=https%253A%252F%252Fwww.ti.com%252Fproduct%252FDAC161S997
@@ -20,24 +20,24 @@
 
 
 
-#define DAC16S997_XFER_REG		        0x01
-#define DAC16S997_NOP			        0x02
-#define DAC16S997_WR_MODE		        0x03
-#define DAC16S997_DACCODE		        0x04
-#define DAC16S997_ERR_CONFIG	                0x05
-#define DAC16S997_ERR_LOW		        0x06
-#define DAC16S997_ERR_HIGH		        0x07
-#define DAC16S997_RESET			        0x08
-#define DAC16S997_STATUS		        0x09
-#define DAC16S997_READ_CMD                      0x80
-#define DAC16S997_RESET_CMD                     0xC33C
-#define DAC16S997_ERR_CONFIG_SPI_TIMEOUT        0x000E
-#define DAC16S997_ERR_CONFIG_MASK_SPI_TOUT      0x0001
-#define DAC16S997_WR_MODE_MASK                  0x0001
-#define DAC16S997_ERR_HIGH_LOW_MASK             0xFF00
+#define DAC161S997_XFER_REG		        0x01
+#define DAC161S997_NOP			        0x02
+#define DAC161S997_WR_MODE		        0x03
+#define DAC161S997_DACCODE		        0x04
+#define DAC161S997_ERR_CONFIG	                0x05
+#define DAC161S997_ERR_LOW		        0x06
+#define DAC161S997_ERR_HIGH		        0x07
+#define DAC161S997_RESET			        0x08
+#define DAC161S997_STATUS		        0x09
+#define DAC161S997_READ_CMD                      0x80
+#define DAC161S997_RESET_CMD                     0xC33C
+#define DAC161S997_ERR_CONFIG_SPI_TIMEOUT        0x000E
+#define DAC161S997_ERR_CONFIG_MASK_SPI_TOUT      0x0001
+#define DAC161S997_WR_MODE_MASK                  0x0001
+#define DAC161S997_ERR_HIGH_LOW_MASK             0xFF00
 
 /**
- * struct dac16s997 - Driver specific data
+ * struct dac161s997 - Driver specific data
  * @spi:                SPI device
  * @lock:               protects read/write sequences
  * @wr_mode:            protected register access (see datasheet 8.5.1.3)
@@ -45,7 +45,7 @@
  * @ping_queue          work queue for periodic NOP reg writes
  * @ping_work           delayed work for periodic NOP reg writes
  */
-struct dac16s997 {
+struct dac161s997 {
 	struct spi_device *spi;
 	struct mutex lock;
         int wr_mode : 1;        
@@ -58,18 +58,18 @@ struct dac16s997 {
 
 
 // SPI transfers
-static int dac16s997_read_register(struct dac16s997 *priv, u8 reg, u16 *val)
+static int dac161s997_read_register(struct dac161s997 *priv, u8 reg, u16 *val)
 {
 	int ret;
         struct spi_transfer xfer[2] = {0};
         u8 rx_buf[3], tx_cmd_buf[3], tx_nop_buf[3];
 
 
-	tx_cmd_buf[0] = reg | DAC16S997_READ_CMD;
+	tx_cmd_buf[0] = reg | DAC161S997_READ_CMD;
 	tx_cmd_buf[1] = 0xff;
 	tx_cmd_buf[2] = 0xff;
     
-        tx_nop_buf[0] = DAC16S997_NOP;
+        tx_nop_buf[0] = DAC161S997_NOP;
         tx_nop_buf[1] = 0xff;
         tx_nop_buf[2] = 0xff;
 	
@@ -94,7 +94,7 @@ static int dac16s997_read_register(struct dac16s997 *priv, u8 reg, u16 *val)
 }
 
 
-static int dac16s997_write_register(struct dac16s997 *priv, u8 reg, u16 val)
+static int dac161s997_write_register(struct dac161s997 *priv, u8 reg, u16 val)
 {
         int ret;
         struct spi_transfer xfer[3] = {0};
@@ -108,11 +108,11 @@ static int dac16s997_write_register(struct dac16s997 *priv, u8 reg, u16 val)
 	        return spi_write(priv->spi, tx_cmd_buf, 3);
         }
         else {
-                tx_xfer_buf[0] = DAC16S997_XFER_REG;
+                tx_xfer_buf[0] = DAC161S997_XFER_REG;
                 tx_xfer_buf[1] = 0x00;
                 tx_xfer_buf[2] = 0xff;
 
-                tx_nop_buf[0] = DAC16S997_NOP;
+                tx_nop_buf[0] = DAC161S997_NOP;
                 tx_nop_buf[1] = 0xff;
                 tx_nop_buf[2] = 0xff;
 
@@ -145,14 +145,14 @@ static int dac16s997_write_register(struct dac16s997 *priv, u8 reg, u16 val)
 }
 
 
-static int dac16s997_reset(struct dac16s997 *priv)
+static int dac161s997_reset(struct dac161s997 *priv)
 {
 	int ret;
         
-        ret = dac16s997_write_register(priv, DAC16S997_RESET, DAC16S997_RESET_CMD);
+        ret = dac161s997_write_register(priv, DAC161S997_RESET, DAC161S997_RESET_CMD);
         if(ret)
                 return ret;
-        ret = dac16s997_write_register(priv, DAC16S997_NOP, 0xffff);
+        ret = dac161s997_write_register(priv, DAC161S997_NOP, 0xffff);
         if(ret)
                 return ret;
 
@@ -160,12 +160,12 @@ static int dac16s997_reset(struct dac16s997 *priv)
 }
 
 
-static void dac16s997_ping(struct work_struct *work)
+static void dac161s997_ping(struct work_struct *work)
 {
-        struct dac16s997 *priv = container_of((struct delayed_work *)work, struct dac16s997, ping_work); 
+        struct dac161s997 *priv = container_of((struct delayed_work *)work, struct dac161s997, ping_work); 
     
         mutex_lock(&priv->lock);
-        dac16s997_write_register(priv, DAC16S997_NOP, 0xffff);
+        dac161s997_write_register(priv, DAC161S997_NOP, 0xffff);
         mutex_unlock(&priv->lock);
 
         if(priv->spi_ping_delay != 0)
@@ -175,14 +175,14 @@ static void dac16s997_ping(struct work_struct *work)
 
 
 
-static ssize_t dac16s997_read_status(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
+static ssize_t dac161s997_read_status(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         u16 status;
         int ret;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_STATUS, &status);
+        ret = dac161s997_read_register(priv, DAC161S997_STATUS, &status);
         mutex_unlock(&priv->lock);
     
         if(ret)
@@ -192,14 +192,14 @@ static ssize_t dac16s997_read_status(struct iio_dev *iio_dev, uintptr_t private,
         return sprintf(buf, "%d\n", (int)status);
 }
 
-static ssize_t dac16s997_read_errcfg(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
+static ssize_t dac161s997_read_errcfg(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         u16 err_cfg;
         int ret;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_ERR_CONFIG, &err_cfg);
+        ret = dac161s997_read_register(priv, DAC161S997_ERR_CONFIG, &err_cfg);
         mutex_unlock(&priv->lock);
     
     if(ret)
@@ -209,9 +209,9 @@ static ssize_t dac16s997_read_errcfg(struct iio_dev *iio_dev, uintptr_t private,
 }
 
 
-static ssize_t dac16s997_write_errcfg(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
+static ssize_t dac161s997_write_errcfg(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         int err_cfg;
         int ret;
 
@@ -222,30 +222,30 @@ static ssize_t dac16s997_write_errcfg(struct iio_dev *iio_dev, uintptr_t private
         err_cfg = err_cfg & 0xffff;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_write_register(priv, DAC16S997_ERR_CONFIG, (u16)err_cfg);
+        ret = dac161s997_write_register(priv, DAC161S997_ERR_CONFIG, (u16)err_cfg);
         mutex_unlock(&priv->lock);
         if(ret)
                 return ret;
 
-        if((err_cfg & DAC16S997_ERR_CONFIG_MASK_SPI_TOUT) == DAC16S997_ERR_CONFIG_MASK_SPI_TOUT) {
+        if((err_cfg & DAC161S997_ERR_CONFIG_MASK_SPI_TOUT) == DAC161S997_ERR_CONFIG_MASK_SPI_TOUT) {
                 priv->spi_ping_delay = 0;
         }
         else {
-                priv->spi_ping_delay = msecs_to_jiffies((((err_cfg & DAC16S997_ERR_CONFIG_SPI_TIMEOUT)>>1) * 50 + 40));
+                priv->spi_ping_delay = msecs_to_jiffies((((err_cfg & DAC161S997_ERR_CONFIG_SPI_TIMEOUT)>>1) * 50 + 40));
                 queue_delayed_work(priv->ping_queue, &priv->ping_work, 0);
         }
         
         return len;
 }
 
-static ssize_t dac16s997_read_wrmode(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
+static ssize_t dac161s997_read_wrmode(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         u16 wr_mode;
         int ret;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_WR_MODE, &wr_mode);
+        ret = dac161s997_read_register(priv, DAC161S997_WR_MODE, &wr_mode);
         mutex_unlock(&priv->lock);
     
     if(ret)
@@ -255,9 +255,9 @@ static ssize_t dac16s997_read_wrmode(struct iio_dev *iio_dev, uintptr_t private,
 }
 
 
-static ssize_t dac16s997_write_wrmode(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
+static ssize_t dac161s997_write_wrmode(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         int wr_mode;
         int ret;
 
@@ -265,10 +265,10 @@ static ssize_t dac16s997_write_wrmode(struct iio_dev *iio_dev, uintptr_t private
         if(ret)
                 return ret;
 
-        wr_mode = wr_mode & DAC16S997_WR_MODE_MASK;     
+        wr_mode = wr_mode & DAC161S997_WR_MODE_MASK;     
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_write_register(priv, DAC16S997_ERR_CONFIG, (u16)wr_mode);
+        ret = dac161s997_write_register(priv, DAC161S997_ERR_CONFIG, (u16)wr_mode);
         mutex_unlock(&priv->lock);
         if(ret)
                 return ret;
@@ -278,14 +278,14 @@ static ssize_t dac16s997_write_wrmode(struct iio_dev *iio_dev, uintptr_t private
 }
 
 
-static ssize_t dac16s997_read_errhigh(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
+static ssize_t dac161s997_read_errhigh(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         u16 err_high;
         int ret;
         
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_ERR_HIGH, &err_high);
+        ret = dac161s997_read_register(priv, DAC161S997_ERR_HIGH, &err_high);
         mutex_unlock(&priv->lock);
     
     if(ret)
@@ -295,9 +295,9 @@ static ssize_t dac16s997_read_errhigh(struct iio_dev *iio_dev, uintptr_t private
 }
 
 
-static ssize_t dac16s997_write_errhigh(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
+static ssize_t dac161s997_write_errhigh(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         int err_high;
         int ret;
 
@@ -305,13 +305,13 @@ static ssize_t dac16s997_write_errhigh(struct iio_dev *iio_dev, uintptr_t privat
         if(ret)
                 return ret;
 
-        err_high = err_high & DAC16S997_ERR_HIGH_LOW_MASK;     
+        err_high = err_high & DAC161S997_ERR_HIGH_LOW_MASK;     
 
         if(err_high < 0x8000)
                 return -EINVAL;
         
         mutex_lock(&priv->lock);
-        ret = dac16s997_write_register(priv, DAC16S997_ERR_HIGH, (u16)err_high);
+        ret = dac161s997_write_register(priv, DAC161S997_ERR_HIGH, (u16)err_high);
         mutex_unlock(&priv->lock);
         if(ret)
                 return ret;
@@ -319,14 +319,14 @@ static ssize_t dac16s997_write_errhigh(struct iio_dev *iio_dev, uintptr_t privat
         return len;
 }
 
-static ssize_t dac16s997_read_errlow(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
+static ssize_t dac161s997_read_errlow(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, char *buf)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         u16 errlow;
         int ret;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_ERR_LOW, &errlow);
+        ret = dac161s997_read_register(priv, DAC161S997_ERR_LOW, &errlow);
         mutex_unlock(&priv->lock);
     
         if(ret)
@@ -336,9 +336,9 @@ static ssize_t dac16s997_read_errlow(struct iio_dev *iio_dev, uintptr_t private,
 }
 
 
-static ssize_t dac16s997_write_errlow(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
+static ssize_t dac161s997_write_errlow(struct iio_dev *iio_dev, uintptr_t private, struct iio_chan_spec const *chan, const char *buf, size_t len)
 {
-        struct dac16s997 *priv = iio_priv(iio_dev);
+        struct dac161s997 *priv = iio_priv(iio_dev);
         int errlow;
         int ret;
 
@@ -346,13 +346,13 @@ static ssize_t dac16s997_write_errlow(struct iio_dev *iio_dev, uintptr_t private
         if(ret)
                 return ret;
 
-        errlow = errlow & DAC16S997_ERR_HIGH_LOW_MASK;
+        errlow = errlow & DAC161S997_ERR_HIGH_LOW_MASK;
 
         if(errlow > 0x8000)
                 return   -EINVAL ;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_write_register(priv, DAC16S997_ERR_LOW, (u16)errlow);
+        ret = dac161s997_write_register(priv, DAC161S997_ERR_LOW, (u16)errlow);
         mutex_unlock(&priv->lock);
         if(ret)
                 return ret;
@@ -361,48 +361,48 @@ static ssize_t dac16s997_write_errlow(struct iio_dev *iio_dev, uintptr_t private
 }
 
 
-static struct iio_chan_spec_ext_info dac16s997_ext_info[] = {
+static struct iio_chan_spec_ext_info dac161s997_ext_info[] = {
     {
         .name = "status",
         .shared = IIO_SHARED_BY_ALL,
-        .read = dac16s997_read_status,
+        .read = dac161s997_read_status,
         .write = NULL,
     },
     {
         .name = "errcfg",
         .shared = IIO_SHARED_BY_ALL,
-        .read = dac16s997_read_errcfg,
-        .write = dac16s997_write_errcfg,
+        .read = dac161s997_read_errcfg,
+        .write = dac161s997_write_errcfg,
     },
     {
         .name = "wrmode",
         .shared = IIO_SHARED_BY_ALL,
-        .read = dac16s997_read_wrmode,
-        .write = dac16s997_write_wrmode,
+        .read = dac161s997_read_wrmode,
+        .write = dac161s997_write_wrmode,
     },
     {
         .name = "errhigh",
         .shared = IIO_SHARED_BY_ALL,
-        .read = dac16s997_read_errhigh,
-        .write = dac16s997_write_errhigh,
+        .read = dac161s997_read_errhigh,
+        .write = dac161s997_write_errhigh,
     },
     {
         .name = "errlow",
         .shared = IIO_SHARED_BY_ALL,
-        .read = dac16s997_read_errlow,
-        .write = dac16s997_write_errlow,
+        .read = dac161s997_read_errlow,
+        .write = dac161s997_write_errlow,
     },
     {},
 };
 
-static const struct iio_chan_spec dac16s997_channel = {
+static const struct iio_chan_spec dac161s997_channel = {
 	.type = IIO_CURRENT,
 	.channel = 0,
 	.output = 1,
 	.datasheet_name = "OUT",
 	.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
 	.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
-        .ext_info = dac16s997_ext_info,
+        .ext_info = dac161s997_ext_info,
 };
 
 
@@ -410,9 +410,9 @@ static const struct iio_chan_spec dac16s997_channel = {
 
 
 
-static int dac16s997_read_raw(struct iio_dev *iio_dev, const struct iio_chan_spec *chan, int *val, int *val2, long mask)
+static int dac161s997_read_raw(struct iio_dev *iio_dev, const struct iio_chan_spec *chan, int *val, int *val2, long mask)
 {
-        struct dac16s997 *priv;
+        struct dac161s997 *priv;
         u16 value;
         int status;
 		
@@ -421,7 +421,7 @@ static int dac16s997_read_raw(struct iio_dev *iio_dev, const struct iio_chan_spe
 	case IIO_CHAN_INFO_RAW:
                 priv = iio_priv(iio_dev);
                 mutex_lock(&priv->lock);
-				status = dac16s997_read_register(priv, DAC16S997_DACCODE, &value);
+				status = dac161s997_read_register(priv, DAC161S997_DACCODE, &value);
                 mutex_unlock(&priv->lock);
                 if(!status) {
                         *val = value;
@@ -441,9 +441,9 @@ static int dac16s997_read_raw(struct iio_dev *iio_dev, const struct iio_chan_spe
 	}
 }
 
-static int dac16s997_write_raw(struct iio_dev *iio_dev, const struct iio_chan_spec *chan, int val, int val2, long mask)
+static int dac161s997_write_raw(struct iio_dev *iio_dev, const struct iio_chan_spec *chan, int val, int val2, long mask)
 {
-	struct dac16s997 *priv = iio_priv(iio_dev);
+	struct dac161s997 *priv = iio_priv(iio_dev);
 	int ret;
 	u16 reg_val;
 	
@@ -453,23 +453,23 @@ static int dac16s997_write_raw(struct iio_dev *iio_dev, const struct iio_chan_sp
 	reg_val = val & 0xFFFF;
 	
 	mutex_lock(&priv->lock);
-	ret = dac16s997_write_register(priv, DAC16S997_DACCODE, reg_val);
+	ret = dac161s997_write_register(priv, DAC161S997_DACCODE, reg_val);
 	mutex_unlock(&priv->lock);
 	
 	return ret;
 }
 
-static const struct iio_info dac16s997_info = {
-        .read_raw = dac16s997_read_raw,
-	.write_raw = dac16s997_write_raw,
+static const struct iio_info dac161s997_info = {
+        .read_raw = dac161s997_read_raw,
+	.write_raw = dac161s997_write_raw,
 };
 
 
 
-static int dac16s997_probe(struct spi_device *spi)
+static int dac161s997_probe(struct spi_device *spi)
 {
 	struct iio_dev *iio_dev;
-	struct dac16s997 *priv;
+	struct dac161s997 *priv;
         u16 dac_reg;
         int ret;
 	
@@ -482,16 +482,16 @@ static int dac16s997_probe(struct spi_device *spi)
 	priv->spi = spi;
 
 	spi_set_drvdata(spi, iio_dev);
-	iio_dev->info = &dac16s997_info;
+	iio_dev->info = &dac161s997_info;
 	iio_dev->modes = INDIO_DIRECT_MODE;
-	iio_dev->channels = &dac16s997_channel;
+	iio_dev->channels = &dac161s997_channel;
 	iio_dev->num_channels = 1;
 	iio_dev->name = spi_get_device_id(spi)->name;
 
         mutex_init(&priv->lock);
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_WR_MODE, &dac_reg);
+        ret = dac161s997_read_register(priv, DAC161S997_WR_MODE, &dac_reg);
         mutex_unlock(&priv->lock);
         if(ret)
                 goto out_free_device;
@@ -499,21 +499,21 @@ static int dac16s997_probe(struct spi_device *spi)
         priv->wr_mode = dac_reg;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_reset(priv);
+        ret = dac161s997_reset(priv);
         mutex_unlock(&priv->lock);
         if(ret)
                 goto out_free_device;
 
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_ERR_CONFIG, &dac_reg);
+        ret = dac161s997_read_register(priv, DAC161S997_ERR_CONFIG, &dac_reg);
         mutex_unlock(&priv->lock);
         if(ret)
                 goto out_free_device;
 
-        priv->spi_ping_delay = msecs_to_jiffies((((dac_reg & DAC16S997_ERR_CONFIG_SPI_TIMEOUT)>>1) * 50 + 40));
+        priv->spi_ping_delay = msecs_to_jiffies((((dac_reg & DAC161S997_ERR_CONFIG_SPI_TIMEOUT)>>1) * 50 + 40));
         
         mutex_lock(&priv->lock);
-        ret = dac16s997_read_register(priv, DAC16S997_WR_MODE, &dac_reg);
+        ret = dac161s997_read_register(priv, DAC161S997_WR_MODE, &dac_reg);
         mutex_unlock(&priv->lock);
         if(ret)
                 goto out_free_device;
@@ -522,7 +522,7 @@ static int dac16s997_probe(struct spi_device *spi)
         
         priv->ping_queue = create_singlethread_workqueue("ping");
 
-        INIT_DELAYED_WORK(&priv->ping_work, dac16s997_ping);
+        INIT_DELAYED_WORK(&priv->ping_work, dac161s997_ping);
         queue_delayed_work(priv->ping_queue, &priv->ping_work, priv->spi_ping_delay);
 	
 	return devm_iio_device_register(&spi->dev, iio_dev);
@@ -532,10 +532,10 @@ out_free_device:
         return -EIO;
 }
 
-static int dac16s997_remove(struct spi_device *spi)
+static int dac161s997_remove(struct spi_device *spi)
 {
 	struct iio_dev *iio_dev = spi_get_drvdata(spi);
-	struct dac16s997 *priv = iio_priv(iio_dev);
+	struct dac161s997 *priv = iio_priv(iio_dev);
 
 	devm_iio_device_unregister(&spi->dev, iio_dev);
         mutex_destroy(&priv->lock);
@@ -546,31 +546,31 @@ static int dac16s997_remove(struct spi_device *spi)
 }
 
 
-static const struct spi_device_id dac16s997_id[] = {
-	{"ti-dac16s997"},
+static const struct spi_device_id dac161s997_id[] = {
+	{"ti-dac161s997"},
 		{}
 };
-MODULE_DEVICE_TABLE(spi, dac16s997_id);
+MODULE_DEVICE_TABLE(spi, dac161s997_id);
 
-static const struct of_device_id dac16s997_of_match[] = {
-	{ .compatible = "ti,dac16s997" },
+static const struct of_device_id dac161s997_of_match[] = {
+	{ .compatible = "ti,dac161s997" },
 	{ },
 };
-MODULE_DEVICE_TABLE(of, dac16s997_of_match);
+MODULE_DEVICE_TABLE(of, dac161s997_of_match);
 
 static struct spi_driver dac16s977_driver = {
         .driver = {
-                .name = "ti-dac16s997",
-                .of_match_table = dac16s997_of_match,
+                .name = "ti-dac161s997",
+                .of_match_table = dac161s997_of_match,
                 .owner = THIS_MODULE,
                 },
-        .probe = dac16s997_probe,
-        .remove = dac16s997_remove,
-        .id_table = dac16s997_id,
+        .probe = dac161s997_probe,
+        .remove = dac161s997_remove,
+        .id_table = dac161s997_id,
 };
 module_spi_driver(dac16s977_driver);
 
 
 MODULE_AUTHOR("Daniel Tritscher <daniel.j.tritscher@gmail.com>");
-MODULE_DESCRIPTION("Texas Instruments DAC16S997 16-bit single channel 4-20mA DAC Driver");
+MODULE_DESCRIPTION("Texas Instruments DAC161S997 16-bit single channel 4-20mA DAC Driver");
 MODULE_LICENSE("GPL v2");
