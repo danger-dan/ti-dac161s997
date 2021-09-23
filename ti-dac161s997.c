@@ -268,7 +268,7 @@ static ssize_t dac161s997_write_wrmode(struct iio_dev *iio_dev, uintptr_t privat
         wr_mode = wr_mode & DAC161S997_WR_MODE_MASK;     
 
         mutex_lock(&priv->lock);
-        ret = dac161s997_write_register(priv, DAC161S997_ERR_CONFIG, (u16)wr_mode);
+        ret = dac161s997_write_register(priv, DAC161S997_WR_MODE, (u16)wr_mode);
         mutex_unlock(&priv->lock);
         if(ret)
                 return ret;
