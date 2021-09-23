@@ -558,7 +558,7 @@ static const struct of_device_id dac161s997_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, dac161s997_of_match);
 
-static struct spi_driver dac16s977_driver = {
+static struct spi_driver dac161s977_driver = {
         .driver = {
                 .name = "ti-dac161s997",
                 .of_match_table = dac161s997_of_match,
@@ -568,7 +568,7 @@ static struct spi_driver dac16s977_driver = {
         .remove = dac161s997_remove,
         .id_table = dac161s997_id,
 };
-module_spi_driver(dac16s977_driver);
+module_spi_driver(dac161s977_driver);
 
 
 MODULE_AUTHOR("Daniel Tritscher <daniel.j.tritscher@gmail.com>");
